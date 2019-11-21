@@ -98,7 +98,7 @@ class TransformerSentenceEncoderLayer(nn.Module):
             need_weights=False,
             attn_mask=self_attn_mask,
         )
-        if hasattr(self, self_attn_adapter):
+        if hasattr(self, 'self_attn_adapter'):
             x = self.self_attn_adapter(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
@@ -109,7 +109,7 @@ class TransformerSentenceEncoderLayer(nn.Module):
         x = F.dropout(x, p=self.activation_dropout, training=self.training)
         x = self.fc2(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
-        if hasattr(self, ff_adapter):
+        if hasattr(self, 'ff_adapter'):
             x = self.ff_adapter(x)
         x = residual + x
         x = self.final_layer_norm(x)
