@@ -95,6 +95,8 @@ class TransformerSentenceEncoder(nn.Module):
         freeze_embeddings: bool = False,
         n_trans_layers_to_freeze: int = 0,
         export: bool = False,
+        self_attn_adapter_dim: int = None,
+        ffn_adapter_dim: int = None
     ) -> None:
 
         super().__init__()
@@ -144,6 +146,8 @@ class TransformerSentenceEncoder(nn.Module):
                     add_bias_kv=add_bias_kv,
                     add_zero_attn=add_zero_attn,
                     export=export,
+                    self_attn_adapter_dim=self_attn_adapter_dim,
+                    ffn_adapter_dim=ffn_adapter_dim,
                 )
                 for _ in range(num_encoder_layers)
             ]

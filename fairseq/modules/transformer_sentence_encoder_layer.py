@@ -14,6 +14,18 @@ from fairseq.modules import (
 )
 
 
+class Adapter(nn.Module):
+    # see https://arxiv.org/pdf/1902.00751.pdf
+    def __init__(self, embedding_dim, adapter_dim, activation_fn):
+        super().__init__()
+        self.fc1 = nn.Linear(embedding_dim, adapter_dim)
+        self.fc2 = nn.Linear(adapter_dim, embedding_dim)
+        self.activation_fn = utils.get_activation_fn(activation_fn)
+
+    def forward(self, x):
+        return self.fc2(self.activation_fn(self.fc1(x))) + x
+
+
 class TransformerSentenceEncoderLayer(nn.Module):
     """
     Implements a Transformer Encoder Layer used in BERT/XLM style pre-trained
@@ -32,6 +44,8 @@ class TransformerSentenceEncoderLayer(nn.Module):
         add_bias_kv: bool = False,
         add_zero_attn: bool = False,
         export: bool = False,
+        self_attn_adapter_dim: int = None,
+        ffn_adapter_dim: int = None
     ) -> None:
 
         super().__init__()
@@ -59,6 +73,12 @@ class TransformerSentenceEncoderLayer(nn.Module):
         # layer norm associated with the position wise feed-forward NN
         self.final_layer_norm = LayerNorm(self.embedding_dim, export=export)
 
+        if self_attn_adapter_dim:
+            self.self_attn_adapter = Adapter(self.embedding_dim, self_attn_adapter_dim, activation_fn)
+
+        if ffn_adapter_dim:
+            self.ff_adapter = Adapter(self.embedding_dim, ffn_adapter_dim, activation_fn)
+
     def forward(
         self,
         x: torch.Tensor,
@@ -78,6 +98,8 @@ class TransformerSentenceEncoderLayer(nn.Module):
             need_weights=False,
             attn_mask=self_attn_mask,
         )
+        if hasattr(self, self_attn_adapter):
+            x = self.self_attn_adapter(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
         x = residual + x
         x = self.self_attn_layer_norm(x)
@@ -87,6 +109,8 @@ class TransformerSentenceEncoderLayer(nn.Module):
         x = F.dropout(x, p=self.activation_dropout, training=self.training)
         x = self.fc2(x)
         x = F.dropout(x, p=self.dropout, training=self.training)
+        if hasattr(self, ff_adapter):
+            x = self.ff_adapter(x)
         x = residual + x
         x = self.final_layer_norm(x)
         return x, attn
