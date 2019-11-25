@@ -170,6 +170,7 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False,
         raise_exception (bool, optional): if ``True``, raise an exception if
             any elements are filtered (default: False).
     """
+    orig_indices = indices
     if isinstance(max_positions, float) or isinstance(max_positions, int):
         if hasattr(dataset, 'sizes') and isinstance(dataset.sizes, np.ndarray):
             ignored = indices[np.logical_or(dataset.sizes[indices] > max_positions, dataset.sizes[indices] < min_positions)].tolist()
@@ -189,10 +190,13 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False,
             'skip this example with --skip-invalid-size-inputs-valid-test'
         ).format(ignored[0], dataset.size(ignored[0]), max_positions))
     if len(ignored) > 0:
+        num_tokens_ignored = np.sum(dataset.sizes[orig_indices][ignored])
+        num_tokens = np.sum(dataset.sizes[orig_indices])
         print((
             '| WARNING: {} samples have invalid sizes and will be skipped, '
             'max_positions={}, first few sample ids={}'
         ).format(len(ignored), max_positions, ignored[:10]))
+        print("Ignored {} tokens of {} total".format(num_tokens_ignored, num_tokens))
     return indices
 
 
