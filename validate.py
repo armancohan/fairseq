@@ -6,6 +6,7 @@
 # LICENSE file in the root directory of this source tree.
 
 import torch
+import math
 
 from fairseq import checkpoint_utils, options, progress_bar, utils
 
@@ -73,10 +74,16 @@ def main(args, override_args=None):
         )
 
         log_outputs = []
+        n_samples = 0
+        nll_loss = 0
         for i, sample in enumerate(progress):
             sample = utils.move_to_cuda(sample) if use_cuda else sample
             _loss, _sample_size, log_output = task.valid_step(sample, model, criterion)
+            nll_loss += log_output['nll_loss']
+            n_samples += log_output['sample_size']
+            log_output['avg_bpc'] = nll_loss / n_samples / math.log(2)
             progress.log(log_output, step=i)
+            del log_output['avg_bpc']
             log_outputs.append(log_output)
 
         log_output = task.aggregate_logging_outputs(log_outputs, criterion)
