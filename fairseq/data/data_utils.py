@@ -170,13 +170,18 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False,
         raise_exception (bool, optional): if ``True``, raise an exception if
             any elements are filtered (default: False).
     """
-    orig_indices = indices
+    num_tokens = None
+    num_tokens_ignored = None
     if isinstance(max_positions, float) or isinstance(max_positions, int):
         if hasattr(dataset, 'sizes') and isinstance(dataset.sizes, np.ndarray):
+            num_tokens = np.sum(dataset.sizes[indices])
             ignored = indices[np.logical_or(dataset.sizes[indices] > max_positions, dataset.sizes[indices] < min_positions)].tolist()
+            num_tokens_ignored = np.sum(dataset.sizes[indices][ignored])
             indices = indices[np.logical_and(dataset.sizes[indices] <= max_positions, dataset.sizes[indices] >= min_positions)]
         elif hasattr(dataset, 'sizes') and isinstance(dataset.sizes, list) and len(dataset.sizes) == 1:
+            num_tokens = np.sum(dataset.sizes[0][indices])
             ignored = indices[np.logical_or(dataset.sizes[0][indices] > max_positions, dataset.sizes[0][indices] < min_positions)].tolist()
+            num_tokens_ignored = np.sum(dataset.sizes[0][indices][ignored])
             indices = indices[np.logical_and(min_positions <= dataset.sizes[0][indices], dataset.sizes[0][indices] <= max_positions)]
         else:
             indices, ignored = _filter_by_size_dynamic(indices, dataset.size, max_positions, min_positions=min_positions)
@@ -190,8 +195,6 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False,
             'skip this example with --skip-invalid-size-inputs-valid-test'
         ).format(ignored[0], dataset.size(ignored[0]), max_positions))
     if len(ignored) > 0:
-        num_tokens_ignored = np.sum(dataset.sizes[orig_indices][ignored])
-        num_tokens = np.sum(dataset.sizes[orig_indices])
         print((
             '| WARNING: {} samples have invalid sizes and will be skipped, '
             'max_positions={}, first few sample ids={}'
