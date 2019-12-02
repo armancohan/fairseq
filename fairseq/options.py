@@ -195,6 +195,7 @@ def get_parser(desc, default_task='translation'):
     parser.add_argument('--empty-cache-freq', default=0, type=int,
                         help='how often to clear the PyTorch CUDA cache (0 to disable)')
     parser.add_argument('--remove-short-samples', action='store_true', help='Remove samples shorter then tokens-per-sample')
+    parser.add_argument('--no-load-strict', action='store_true')
 
     from fairseq.registry import REGISTRIES
     for registry_name, REGISTRY in REGISTRIES.items():
