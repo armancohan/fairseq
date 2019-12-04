@@ -64,6 +64,8 @@ class MaskTokensDataset(BaseWrapperDataset):
         random_token_prob: float = 0.1,
         freq_weighted_replacement: bool = False,
         mask_whole_words: torch.Tensor = None,
+        max_mask_prob: float = None,
+        mask_prob_cutoff: float = None,
     ):
         assert 0.0 < mask_prob < 1.0
         assert 0.0 <= random_token_prob <= 1.0
@@ -91,6 +93,9 @@ class MaskTokensDataset(BaseWrapperDataset):
 
         self.epoch = 0
 
+        self.max_mask_prob = max_mask_prob
+        self.mask_prob_cutoff = mask_prob_cutoff
+
     def set_epoch(self, epoch, **unused):
         self.epoch = epoch
 
@@ -115,9 +120,13 @@ class MaskTokensDataset(BaseWrapperDataset):
 
             # decide elements to mask
             mask = np.full(sz, False)
+            if self.max_mask_prob is None or np.random.rand() < self.mask_prob_cutoff:
+                mask_prob = self.mask_prob
+            else:
+                mask_prob = np.random.rand() * (self.max_mask_prob - self.mask_prob) + self.mask_prob
             num_mask = int(
                 # add a random number for probabilistic rounding
-                self.mask_prob * sz + np.random.rand()
+                mask_prob * sz + np.random.rand()
             )
             mask[np.random.choice(sz, num_mask, replace=False)] = True
 
