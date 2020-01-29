@@ -84,11 +84,13 @@ class TransformerSentenceEncoderLayer(nn.Module):
         x: torch.Tensor,
         self_attn_mask: torch.Tensor = None,
         self_attn_padding_mask: torch.Tensor = None,
+        extra_attention_mask: torch.Tensor = None,
     ):
         """
         LayerNorm is applied either before or after the self-attention/ffn
         modules similar to the original Transformer imlementation.
         """
+        assert self_attn_mask is None
         residual = x
         x, attn = self.self_attn(
             query=x,
@@ -96,7 +98,7 @@ class TransformerSentenceEncoderLayer(nn.Module):
             value=x,
             key_padding_mask=self_attn_padding_mask,
             need_weights=False,
-            attn_mask=self_attn_mask,
+            attn_mask=extra_attention_mask,
         )
         if hasattr(self, 'self_attn_adapter'):
             x = self.self_attn_adapter(x)
