@@ -353,17 +353,21 @@ class RobertaEncoder(FairseqDecoder):
                   is a list of hidden states.
         """
         extra_attention_mask = unused.get('extra_attention_mask')
-        x, extra = self.extract_features(src_tokens, return_all_hiddens, extra_attention_mask=extra_attention_mask)
+        symmetric_extra_attention = unused.get('symmetric_extra_attention', False)
+        x, extra = self.extract_features(src_tokens, return_all_hiddens, extra_attention_mask=extra_attention_mask,
+                                         symmetric_extra_attention=symmetric_extra_attention)
         if not features_only:
             x = self.output_layer(x, masked_tokens=masked_tokens)
         return x, extra
 
     def extract_features(self, src_tokens, return_all_hiddens=False, **unused):
         extra_attention_mask = unused.get('extra_attention_mask')
+        symmetric_extra_attention = unused.get('symmetric_extra_attention', False)
         inner_states, _ = self.sentence_encoder(
             src_tokens,
             last_state_only=not return_all_hiddens,
-            extra_attention_mask=extra_attention_mask
+            extra_attention_mask=extra_attention_mask,
+            symmetric_extra_attention=symmetric_extra_attention,
         )
         features = inner_states[-1]
         return features, {'inner_states': inner_states if return_all_hiddens else None}

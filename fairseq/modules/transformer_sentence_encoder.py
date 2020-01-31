@@ -183,6 +183,7 @@ class TransformerSentenceEncoder(nn.Module):
         last_state_only: bool = False,
         positions: Optional[torch.Tensor] = None,
         extra_attention_mask: Optional[torch.Tensor] = None,
+        **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         # compute padding mask. This is needed for multi-head attention
@@ -221,7 +222,7 @@ class TransformerSentenceEncoder(nn.Module):
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
             dropout_probability = random.uniform(0, 1)
             if not self.training or (dropout_probability > self.layerdrop):
-                x, _ = layer(x, self_attn_padding_mask=padding_mask, extra_attention_mask=extra_attention_mask)
+                x, _ = layer(x, self_attn_padding_mask=padding_mask, extra_attention_mask=extra_attention_mask, **kwargs)
                 if not last_state_only:
                     inner_states.append(x)
 
