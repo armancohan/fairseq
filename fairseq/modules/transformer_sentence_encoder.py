@@ -197,7 +197,14 @@ class TransformerSentenceEncoder(nn.Module):
             x *= self.embed_scale
 
         if self.embed_positions is not None:
-            x += self.embed_positions(tokens, positions=positions)
+            if hasattr(self, 'embed_positions_extra'):
+                base_seqlen = self.embed_positions.max_positions()
+                pos_embd_1 = self.embed_positions(tokens[:, :base_seqlen], positions=positions)
+                pos_embd_2 = self.embed_positions_extra(tokens[:, base_seqlen:], positions=positions)
+                pos_embeddings = torch.cat([pos_embd_1, pos_embd_2], dim=1)
+            else:
+                pos_embeddings = self.embed_positions(tokens, positions=positions)
+            x += pos_embeddings
 
         if self.segment_embeddings is not None and segment_labels is not None:
             x += self.segment_embeddings(segment_labels)
