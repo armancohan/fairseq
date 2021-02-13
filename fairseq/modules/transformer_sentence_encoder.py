@@ -95,6 +95,8 @@ class TransformerSentenceEncoder(nn.Module):
         freeze_embeddings: bool = False,
         n_trans_layers_to_freeze: int = 0,
         export: bool = False,
+        self_attn_adapter_dim: int = None,
+        ffn_adapter_dim: int = None
     ) -> None:
 
         super().__init__()
@@ -144,6 +146,8 @@ class TransformerSentenceEncoder(nn.Module):
                     add_bias_kv=add_bias_kv,
                     add_zero_attn=add_zero_attn,
                     export=export,
+                    self_attn_adapter_dim=self_attn_adapter_dim,
+                    ffn_adapter_dim=ffn_adapter_dim,
                 )
                 for _ in range(num_encoder_layers)
             ]
@@ -178,6 +182,8 @@ class TransformerSentenceEncoder(nn.Module):
         segment_labels: torch.Tensor = None,
         last_state_only: bool = False,
         positions: Optional[torch.Tensor] = None,
+        extra_attention_mask: Optional[torch.Tensor] = None,
+        **kwargs
     ) -> Tuple[torch.Tensor, torch.Tensor]:
 
         # compute padding mask. This is needed for multi-head attention
@@ -191,7 +197,14 @@ class TransformerSentenceEncoder(nn.Module):
             x *= self.embed_scale
 
         if self.embed_positions is not None:
-            x += self.embed_positions(tokens, positions=positions)
+            if hasattr(self, 'embed_positions_extra'):
+                base_seqlen = self.embed_positions.max_positions()
+                pos_embd_1 = self.embed_positions(tokens[:, :base_seqlen], positions=positions)
+                pos_embd_2 = self.embed_positions_extra(tokens[:, base_seqlen:], positions=positions)
+                pos_embeddings = torch.cat([pos_embd_1, pos_embd_2], dim=1)
+            else:
+                pos_embeddings = self.embed_positions(tokens, positions=positions)
+            x += pos_embeddings
 
         if self.segment_embeddings is not None and segment_labels is not None:
             x += self.segment_embeddings(segment_labels)
@@ -216,7 +229,7 @@ class TransformerSentenceEncoder(nn.Module):
             # add LayerDrop (see https://arxiv.org/abs/1909.11556 for description)
             dropout_probability = random.uniform(0, 1)
             if not self.training or (dropout_probability > self.layerdrop):
-                x, _ = layer(x, self_attn_padding_mask=padding_mask)
+                x, _ = layer(x, self_attn_padding_mask=padding_mask, extra_attention_mask=extra_attention_mask, **kwargs)
                 if not last_state_only:
                     inner_states.append(x)
 

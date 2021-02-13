@@ -83,6 +83,8 @@ class RobertaModel(FairseqLanguageModel):
                             help='LayerDrop probability for encoder')
         parser.add_argument('--encoder-layers-to-keep', default=None,
                             help='which layers to *keep* when pruning as a comma-separated list')
+        parser.add_argument('--self-attn-adapter-dim', type=int, default=None)
+        parser.add_argument('--ffn-adapter-dim', type=int, default=None)
 
     @classmethod
     def build_model(cls, args, task):
@@ -324,6 +326,8 @@ class RobertaEncoder(FairseqDecoder):
             encoder_normalize_before=True,
             apply_bert_init=True,
             activation_fn=args.activation_fn,
+            self_attn_adapter_dim=args.self_attn_adapter_dim,
+            ffn_adapter_dim=args.ffn_adapter_dim,
         )
         self.lm_head = RobertaLMHead(
             embed_dim=args.encoder_embed_dim,
@@ -348,15 +352,27 @@ class RobertaEncoder(FairseqDecoder):
                 - a dictionary of additional data, where 'inner_states'
                   is a list of hidden states.
         """
-        x, extra = self.extract_features(src_tokens, return_all_hiddens)
+        extra_attention_mask = unused.get('extra_attention_mask')
+        segment_labels = unused.get('segment_labels')
+        symmetric_extra_attention = unused.get('symmetric_extra_attention', True)
+        x, extra = self.extract_features(src_tokens, return_all_hiddens,
+                                         extra_attention_mask=extra_attention_mask,
+                                         segment_labels=segment_labels,
+                                         symmetric_extra_attention=symmetric_extra_attention)
         if not features_only:
             x = self.output_layer(x, masked_tokens=masked_tokens)
         return x, extra
 
     def extract_features(self, src_tokens, return_all_hiddens=False, **unused):
+        extra_attention_mask = unused.get('extra_attention_mask')
+        segment_labels = unused.get('segment_labels')
+        symmetric_extra_attention = unused.get('symmetric_extra_attention', True)
         inner_states, _ = self.sentence_encoder(
             src_tokens,
+            segment_labels=segment_labels,
             last_state_only=not return_all_hiddens,
+            extra_attention_mask=extra_attention_mask,
+            symmetric_extra_attention=symmetric_extra_attention,
         )
         features = inner_states[-1]
         return features, {'inner_states': inner_states if return_all_hiddens else None}
@@ -383,6 +399,9 @@ def base_architecture(args):
     args.attention_dropout = getattr(args, 'attention_dropout', 0.1)
     args.activation_dropout = getattr(args, 'activation_dropout', 0.0)
     args.pooler_dropout = getattr(args, 'pooler_dropout', 0.0)
+
+    args.self_attn_adapter_dim = getattr(args, 'self_attn_adapter_dim', None)
+    args.ffn_adapter_dim = getattr(args, 'ffn_adapter_dim', None)   
 
 
 @register_model_architecture('roberta', 'roberta_base')

@@ -95,6 +95,7 @@ class MultiheadAttention(nn.Module):
         attn_mask=None,
         before_softmax=False,
         need_head_weights=False,
+        **unused,
     ):
         """Input shape: Time x Batch x Channel
 

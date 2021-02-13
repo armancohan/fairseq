@@ -70,6 +70,9 @@ class MaskedLMTask(FairseqTask):
         print('| dictionary: {} types'.format(len(dictionary)))
         return cls(args, dictionary)
 
+    def max_positions(self):
+        return self.args.tokens_per_sample
+
     def load_dataset(self, split, epoch=0, combine=False, **kwargs):
         """Load a given dataset split.
 

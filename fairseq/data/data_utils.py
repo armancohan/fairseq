@@ -124,10 +124,10 @@ def collect_filtered(function, iterable, filtered):
             filtered.append(el)
 
 
-def _filter_by_size_dynamic(indices, size_fn, max_positions, raise_exception=False):
+def _filter_by_size_dynamic(indices, size_fn, max_positions, raise_exception=False, min_positions=0):
     def check_size(idx):
         if isinstance(max_positions, float) or isinstance(max_positions, int):
-            return size_fn(idx) <= max_positions
+            return min_positions <= size_fn(idx) <= max_positions
         elif isinstance(max_positions, dict):
             idx_size = size_fn(idx)
             assert isinstance(idx_size, dict)
@@ -157,7 +157,8 @@ def _filter_by_size_dynamic(indices, size_fn, max_positions, raise_exception=Fal
     return indices, ignored
 
 
-def filter_by_size(indices, dataset, max_positions, raise_exception=False):
+def filter_by_size(indices, dataset, max_positions, raise_exception=False,
+                   min_positions=0):
     """
     Filter indices based on their size.
 
@@ -169,17 +170,24 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False):
         raise_exception (bool, optional): if ``True``, raise an exception if
             any elements are filtered (default: False).
     """
+    num_tokens = None
+    num_tokens_ignored = None
     if isinstance(max_positions, float) or isinstance(max_positions, int):
         if hasattr(dataset, 'sizes') and isinstance(dataset.sizes, np.ndarray):
-            ignored = indices[dataset.sizes[indices] > max_positions].tolist()
-            indices = indices[dataset.sizes[indices] <= max_positions]
+            num_tokens = np.sum(dataset.sizes[indices])
+            ignored = indices[np.logical_or(dataset.sizes[indices] > max_positions, dataset.sizes[indices] < min_positions)].tolist()
+            num_tokens_ignored = np.sum(dataset.sizes[indices][ignored])
+            indices = indices[np.logical_and(dataset.sizes[indices] <= max_positions, dataset.sizes[indices] >= min_positions)]
         elif hasattr(dataset, 'sizes') and isinstance(dataset.sizes, list) and len(dataset.sizes) == 1:
-            ignored = indices[dataset.sizes[0][indices] > max_positions].tolist()
-            indices = indices[dataset.sizes[0][indices] <= max_positions]
+            num_tokens = np.sum(dataset.sizes[0][indices])
+            ignored = indices[np.logical_or(dataset.sizes[0][indices] > max_positions, dataset.sizes[0][indices] < min_positions)].tolist()
+            num_tokens_ignored = np.sum(dataset.sizes[0][indices][ignored])
+            indices = indices[np.logical_and(min_positions <= dataset.sizes[0][indices], dataset.sizes[0][indices] <= max_positions)]
         else:
-            indices, ignored = _filter_by_size_dynamic(indices, dataset.size, max_positions)
+            indices, ignored = _filter_by_size_dynamic(indices, dataset.size, max_positions, min_positions=min_positions)
     else:
-        indices, ignored = _filter_by_size_dynamic(indices, dataset.size, max_positions)
+        # not supported
+        indices, ignored = _filter_by_size_dynamic(indices, dataset.size, max_positions, min_positions=min_positions)
 
     if len(ignored) > 0 and raise_exception:
         raise Exception((
@@ -191,7 +199,10 @@ def filter_by_size(indices, dataset, max_positions, raise_exception=False):
             '| WARNING: {} samples have invalid sizes and will be skipped, '
             'max_positions={}, first few sample ids={}'
         ).format(len(ignored), max_positions, ignored[:10]))
+        print("Ignored {} tokens of {} total".format(num_tokens_ignored, num_tokens))
     return indices
+
+
 
 
 def batch_by_size(

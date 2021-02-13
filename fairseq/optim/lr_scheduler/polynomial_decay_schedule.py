@@ -24,6 +24,9 @@ class PolynomialDecaySchedule(FairseqLRScheduler):
         self.end_learning_rate = args.end_learning_rate
         self.total_num_update = args.total_num_update
         self.power = args.power
+        print("==============================================================")
+        print("POWER: {}".format(self.power))
+        print("==============================================================")
         self.optimizer.set_lr(self.warmup_factor * self.lr)
 
     @staticmethod

@@ -181,9 +181,10 @@ class Trainer(object):
 
             # load model parameters
             try:
-                self.get_model().load_state_dict(state['model'], strict=True, args=self.args)
+                strict = not self.args.no_load_strict
+                self.get_model().load_state_dict(state['model'], strict=strict, args=self.args)
                 if utils.has_parameters(self.get_criterion()):
-                    self.get_criterion().load_state_dict(state['criterion'], strict=True)
+                    self.get_criterion().load_state_dict(state['criterion'], strict=strict)
             except Exception:
                 raise Exception(
                     'Cannot load model parameters from checkpoint {}; '
@@ -256,6 +257,7 @@ class Trainer(object):
             shard_id=self.args.distributed_rank,
             num_workers=self.args.num_workers,
             epoch=epoch,
+            remove_short_samples=getattr(self.args, 'remove_short_samples', False),
         )
 
     def train_step(self, samples, dummy_batch=False, raise_oom=False):
